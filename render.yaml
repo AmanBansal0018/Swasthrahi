@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: swasthrahi
+    runtime: docker
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/health
+    envVars:
+      - key: SWASTHRAHI_SECRET
+        generateValue: true
+      - key: SWASTHRAHI_DATA_DIR
+        value: /var/data
+    disk:
+      name: swasthrahi-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,0 +1,8 @@
+backend/__pycache__/
+backend/*.db
+backend/uploads/
+.venv/
+__pycache__/
+backend/data/
+node_modules/
+npm-debug.log*

@@ -1,0 +1,11 @@
+{
+  "name": "swasthrahi",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Swasthrahi full-stack healthcare application (FastAPI + static frontend)",
+  "scripts": {
+    "postinstall": "node scripts/install-python.js",
+    "dev": "node scripts/run-api.js --reload",
+    "start": "node scripts/run-api.js"
+  }
+}

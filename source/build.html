@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Gramrahi builder</title>
+<style>body{font-family:Arial,sans-serif;max-width:720px;margin:40px auto;padding:0 16px;line-height:1.6}button{padding:12px 22px;margin:10px 0;font-size:16px;cursor:pointer}pre{background:#f4f4f4;padding:12px;white-space:pre-wrap}a{font-size:18px}</style></head>
+<body>
+<h1>Gramrahi builder</h1>
+<p>Select all 5 files together (Ctrl-click): <b>index.html, script.js, style.css, features.js, features.css</b>. Then press Build.</p>
+<input type="file" id="f" multiple accept=".html,.js,.css"><br>
+<button onclick="build()">Build clean files</button>
+<div id="dl"></div><pre id="log"></pre>
+<script>
+const log = [];
+function rep(label, s, re, to) {
+  const m = s.match(re);
+  log.push((m ? "OK    " : "MISS  ") + label);
+  return s.replace(re, to);
+}
+async function build() {
+  log.length = 0;
+  const files = [...document.getElementById("f").files];
+  const get = n => files.find(f => f.name.toLowerCase() === n);
+  const hf = files.find(f => /\.html?$/i.test(f.name) && !/build/i.test(f.name));
+  const jf = get("script.js"), cf = get("style.css"), xjf = get("features.js"), xcf = get("features.css");
+  if (!hf || !jf || !cf || !xjf || !xcf) { alert("Please select all 5 files."); return; }
+  let [h, j, c, xj, xc] = await Promise.all([hf, jf, cf, xjf, xcf].map(f => f.text()));
+
+  /* ---------- HTML ---------- */
+  h = rep("cloudinary script -> QR library", h, /<script[^>]*cloudinary[^>]*><\/script>/i,
+    '<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>');
+  h = rep("cloudinary note", h, /<div class="cloudinary-note">[\s\S]*?<\/div>/, "");
+  h = rep("photo upload field", h, /<div class="form-group">\s*<label>Your Photo[\s\S]*?<\/div>\s*<\/div>/, "");
+  h = rep("change photo button", h, /<button[^>]*uploadProfilePhoto\(\)[^>]*>[\s\S]*?<\/button>/g, "");
+  h = rep("medical documents card", h, /<div class="info-card" style="margin-top:28px">[\s\S]*?<div id="docGallery" class="doc-gallery"><\/div>\s*<\/div>/, "");
+  h = rep("vaccination photo button", h, /<button[^>]*uploadVaccineCard\(\)[^>]*>[\s\S]*?<\/button>/, "");
+  h = rep("footer credit", h, /<br><small>Media delivery powered by[\s\S]*?<\/small>/, "");
+  h = rep("impact text", h, /One Patient ID, a photo to identify the patient, and photos of prescriptions and vaccination\s+cards stored safely, so any hospital can see what it needs to start treatment\./,
+    "One Patient ID and a QR code that carry the patient's health details, so any hospital can see what it needs to start treatment.");
+
+  /* ---------- JS ---------- */
+  const i = j.indexOf("const CLOUDINARY_CLOUD_NAME");
+  log.push(i > 0 ? "OK    removed cloudinary block" : "MISS  removed cloudinary block");
+  if (i > 0) j = j.slice(0, i).trimEnd() + "\n";
+  j = rep("vaccine card photo", j, /\+\s*\(child\.cardPhotoId \?[\s\S]*?: ""\);/, ";");
+  j = rep("handoff photo/docs", j, /,\s*photoUrl:[^\n]*\n\s*documents:[^\n]*/, "");
+  j = rep("receipt photo", j, /\(d\.photoUrl \?.*?: ""\) \+ /, "");
+  j = rep("registry photo/docs", j, /,\s*photoId: hsGet\("patientPhotoId"\), docs: getPatientDocs\(\)/, "");
+  j = rep("record photo", j, /\n\s*\(rec\.photoId \?[^\n]*: ""\) \+/, "");
+  j = rep("record docs", j, /\n\s*\(\(rec\.docs && rec\.docs\.length\) \?[\s\S]*?: ""\) \+/, "");
+  j += "\n\n/* ===== New features: First Aid, Blood Availability, Profile QR ===== */\n" + xj;
+
+  /* ---------- CSS ---------- */
+  [".cloudinary-note", ".photo-upload", ".photo-thumb", ".profile-avatar img", ".doc-gallery", ".doc-item",
+   ".doc-item img", ".doc-item div", ".doc-item button", ".record-photo", ".vaccine-card-photo", ".vaccine-card-photo img"
+  ].forEach(sel => {
+    const re = new RegExp("^" + sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{[^}]*\\}[ \\t]*\\n?", "m");
+    c = rep("css " + sel, c, re, "");
+  });
+  c = c.replace(" + Cloudinary additions", " additions");
+  c += "\n\n/* ===== New features ===== */\n" + xc;
+
+  /* ---------- checks ---------- */
+  const bad = /cloudinary|\bcld[A-Z]\w*|getPatientDocs|photoId|uploadProfilePhoto|uploadMedicalDoc|uploadVaccineCard|docGallery|cardPhotoId|photoUrl/gi;
+  [["index.html", h], ["script.js", j], ["style.css", c]].forEach(([n, t]) => {
+    const m = t.match(bad);
+    log.push(m ? "LEFTOVER in " + n + ": " + [...new Set(m)].join(", ") : "CLEAN " + n + " (no cloudinary)");
+  });
+  try { new Function(j); log.push("OK    script.js syntax is valid"); }
+  catch (e) { log.push("ERROR script.js: " + e.message); }
+
+  const dl = document.getElementById("dl"); dl.innerHTML = "";
+  [["index.html", h, "text/html"], ["script.js", j, "text/javascript"], ["style.css", c, "text/css"]].forEach(([n, t, m]) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([t], { type: m }));
+    a.download = n; a.textContent = "⬇ Download " + n; a.style.display = "block"; a.style.margin = "10px 0";
+    dl.appendChild(a);
+  });
+  document.getElementById("log").textContent = log.join("\n");
+}
+</script></body></html>
