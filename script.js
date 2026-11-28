@@ -1,6 +1,6 @@
 let previousPage = "home";
 
-function showPage(pageId) {
+function showPage(pageId1) {
     const activePage = document.querySelector(".page.active");
 
     if (activePage && activePage.id !== pageId) {
